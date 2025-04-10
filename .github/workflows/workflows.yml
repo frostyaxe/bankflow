@@ -49,6 +49,14 @@ jobs:
         run: |
           mvn clean package -DskipTests --batch-mode -f bankflow/pom.xml 
 
+      # Setting Image Tag
+      - name: "Set image tags"
+        if: github.event_name != 'pull_request'
+        id: image_tags
+        run: |
+          IMAGE_TAG=${{github.ref_name}}
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
       # Setting up docker buildx
       - name: "Setup Docker Buildx"
         if: github.event_name != 'pull_request'
@@ -56,10 +64,30 @@ jobs:
 
       # Build Docker Image
       # Branch name will be used for tagging the image
-      - name: Build Docker Image
+      - name: "Build Docker Image"
         if: github.event_name != 'pull_request'
         run: |
-          docker buildx build -t bankflow:${{ github.ref_name }} .
+          docker buildx build -t ${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.ap-south-1.amazonaws.com/bankflow/bankflow-app:${{ steps.image_tags.outputs.image_tag }} .
+
+      # Configuring AWS Credentials for the authentication
+      - name: "Configure AWS credentials"
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # Logging in to Amazon ECR
+      - name: "Login to Amazon ECR"
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Pushing the docker image
+      - name: "Push Docker Image"
+        run: |
+          docker buildx build --push . -t ${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.ap-south-1.amazonaws.com/bankflow/bankflow-app:${{ steps.image_tags.outputs.image_tag }}
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
 
       - name: "Test for the pull request"
         if: github.event_name != 'pull_request'
