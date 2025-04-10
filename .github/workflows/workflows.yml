@@ -1,0 +1,55 @@
+# This workflow handles the CI and CD for bankflow application
+# On any pull request for main, the code validation will happen
+# When the code is pushed in develop or main branch, the application gets built and deployed.
+
+name: "CI-CD Workflow for the deployment of bankflow application"
+on:
+  pull_request:
+    branches:
+      - "main"
+  push:
+    branches:
+      - "develop"
+      - "main"
+
+jobs:
+  build:
+    runs-on: ["ubuntu-latest"] 
+    steps:
+
+      # Source Code Checkout
+      - name: "Code Checkout"
+        uses: actions/checkout@v3
+
+      # Installing JDK and Maven 
+      - name: "Set up JDK"
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Implementing Caching for Maven dependencies
+      - name: "Cache Maven dependencies"
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository  
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # Performing the execution of the unit test cases
+      # Batch mode makes sure that any prompt should not halt the execution
+      - name: "Unit Test Cases Execution"
+        run: |
+          mvn test --batch-mode -f bankflow/pom.xml 
+
+      # Skipping the test case execution here
+      # Generating the jar file in this step
+      - name: "Generate Build Artifact"
+        run: |
+          mvn clean package -DskipTests --batch-mode -f bankflow/pom.xml 
+
+      - name: "Test for the pull request"
+        if: github.event_name != 'pull_request'
+        run: "echo Test"
+      
