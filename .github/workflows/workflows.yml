@@ -49,6 +49,18 @@ jobs:
         run: |
           mvn clean package -DskipTests --batch-mode -f bankflow/pom.xml 
 
+      # Setting up docker buildx
+      - name: "Setup Docker Buildx"
+        if: github.event_name != 'pull_request'
+        uses: docker/setup-buildx-action@v2
+
+      # Build Docker Image
+      # Branch name will be used for tagging the image
+      - name: Build Docker Image
+        if: github.event_name != 'pull_request'
+        run: |
+          docker buildx build -t bankflow:${{ github.ref_name }} .
+
       - name: "Test for the pull request"
         if: github.event_name != 'pull_request'
         run: "echo Test"
