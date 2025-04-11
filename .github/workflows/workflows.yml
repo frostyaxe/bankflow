@@ -120,7 +120,7 @@ jobs:
 
       - name: "Update kubeconfig in EKS"
         run: |
-          aws eks update-kubeconfig --region ${{ vars.AWS_REGION }} --name bankflow
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name bankflow
 
       - name: "Execute Helm Command"
         run: |
