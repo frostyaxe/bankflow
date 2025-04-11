@@ -87,7 +87,7 @@ jobs:
 
       # Pushing the docker image
       - name: "Push Docker Image"
-        if: github.event_name != 'pull_request' && isDryrun == 'false'
+        if: github.event_name != 'pull_request' && env.isDryrun == 'false'
         run: |
           docker buildx build --push . -t ${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/bankflow/bankflow-app:${{ steps.image_tags.outputs.image_tag }}
         env:
@@ -120,7 +120,7 @@ jobs:
 
       - name: "Execute Helm Command"
         run: |
-          helm upgrade --install --dry-run bankflow ./bankflow -f bankflow/dev-values.yml --set image.repository="${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/bankflow/bankflow-app -f bankflow/${ENV_NAME}-values.yml
+          helm upgrade --install --dry-run bankflow ./bankflow -f bankflow/dev-values.yml --set image.repository="${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/bankflow/bankflow-app" -f bankflow/${ENV_NAME}-values.yml
         working-directory: "./helm"
 
     
