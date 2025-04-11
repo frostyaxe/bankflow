@@ -16,7 +16,7 @@ jobs:
   build:
     runs-on: ["ubuntu-latest"] 
     env:
-      isDryrun: "true"
+      isDryrun: "false"
     steps:
 
       # Source Code Checkout
