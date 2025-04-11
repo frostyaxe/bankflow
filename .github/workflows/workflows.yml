@@ -123,10 +123,10 @@ jobs:
         run: |
           aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name bankflow-eks-cluster
 
-      # Installing ingress controller for enabling and using ingress
-      - name: "Installing ingress controller"
-        run: |
-          helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --namespace ingress-nginx --create-namespace
+      # # Installing ingress controller for enabling and using ingress
+      # - name: "Installing ingress controller"
+      #   run: |
+      #     helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --namespace ingress-nginx --create-namespace
 
       # Installing the application using helm. It is upgrade if release already exists
       - name: "Installing application"
