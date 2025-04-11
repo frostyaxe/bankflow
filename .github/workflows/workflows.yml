@@ -85,7 +85,7 @@ jobs:
       # Pushing the docker image
       - name: "Push Docker Image"
         run: |
-          docker buildx build --push . -t ${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.ap-south-1.amazonaws.com/bankflow/bankflow-app:${{ steps.image_tags.outputs.image_tag }}
+          docker buildx build --push . -t ${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/bankflow/bankflow-app:${{ steps.image_tags.outputs.image_tag }}
         env:
           DOCKER_CLI_EXPERIMENTAL: enabled
 
