@@ -117,12 +117,19 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
+      
+      # Updating kubeconfig
       - name: "Update kubeconfig in EKS"
         run: |
           aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name bankflow-eks-cluster
 
-      - name: "Execute Helm Command"
+      # Installing ingress controller for enabling and using ingress
+      - name: "Installing ingress controller"
+        run: |
+          helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --namespace ingress-nginx --create-namespace
+
+      # Installing the application using helm. It is upgrade if release already exists
+      - name: "Installing application"
         run: |
           helm upgrade --install bankflow ./bankflow -f bankflow/dev-values.yml --set image.repository="${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/bankflow/bankflow-app" -f bankflow/${ENV_NAME}-values.yml --namespace $ENV_NAME --create-namespace
         working-directory: "./helm"
