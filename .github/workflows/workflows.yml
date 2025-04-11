@@ -1,0 +1,134 @@
+# This workflow handles the CI and CD for bankflow application
+# On any pull request for main, the code validation will happen
+# When the code is pushed in develop or main branch, the application gets built and deployed.
+
+name: "CI-CD Workflow for the deployment of bankflow application"
+on:
+  pull_request:
+    branches:
+      - "main"
+  push:
+    branches:
+      - "develop"
+      - "main"
+
+jobs:
+  build:
+    runs-on: ["ubuntu-latest"] 
+    env:
+      isDryrun: "false"
+    steps:
+
+      # Source Code Checkout
+      - name: "Code Checkout"
+        uses: actions/checkout@v3
+
+      # Installing JDK and Maven 
+      - name: "Set up JDK"
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Implementing Caching for Maven dependencies
+      - name: "Cache Maven dependencies"
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository  
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # Performing the execution of the unit test cases
+      # Batch mode makes sure that any prompt should not halt the execution
+      - name: "Unit Test Cases Execution"
+        run: |
+          mvn test --batch-mode -f bankflow/pom.xml 
+
+      # Skipping the test case execution here
+      # Generating the jar file in this step
+      - name: "Generate Build Artifact"
+        run: |
+          mvn clean package -DskipTests --batch-mode -f bankflow/pom.xml 
+
+      # Setting Image Tag
+      - name: "Set image tags"
+        if: github.event_name != 'pull_request'
+        id: image_tags
+        run: |
+          IMAGE_TAG=${{github.ref_name}}
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      # Setting up docker buildx
+      - name: "Setup Docker Buildx"
+        if: github.event_name != 'pull_request'
+        uses: docker/setup-buildx-action@v2
+
+      # Build Docker Image
+      # Branch name will be used for tagging the image
+      - name: "Build Docker Image"
+        if: github.event_name != 'pull_request'
+        run: |
+          docker buildx build -t ${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.ap-south-1.amazonaws.com/bankflow/bankflow-app:${{ steps.image_tags.outputs.image_tag }} .
+
+      # Configuring AWS Credentials for the authentication
+      - name: "Configure AWS credentials"
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # Logging in to Amazon ECR
+      - name: "Login to Amazon ECR"
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Pushing the docker image
+      - name: "Push Docker Image"
+        if: github.event_name != 'pull_request' && env.isDryrun == 'false'
+        run: |
+          docker buildx build --push . -t ${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/bankflow/bankflow-app:${{ steps.image_tags.outputs.image_tag }}
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+
+  deploy:
+    needs: ["build"]
+    runs-on: ["ubuntu-latest"]
+    if: ${{ github.event_name != 'pull_request' }}
+    env:
+      ENV_NAME: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    steps:
+
+      # Source code checkout
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Helm installation in the runner
+      - uses: azure/setup-helm@v4.3.0
+        with:
+          version: 'latest'
+
+      # Configuring AWS Credentials for the authentication
+      - name: "Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: "Update kubeconfig in EKS"
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name bankflow-eks-cluster
+
+      - name: "Execute Helm Command"
+        run: |
+          helm upgrade --install bankflow ./bankflow -f bankflow/dev-values.yml --set image.repository="${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/bankflow/bankflow-app" -f bankflow/${ENV_NAME}-values.yml --namespace $ENV_NAME --create-namespace
+        working-directory: "./helm"
+
+    
+
+      
+      
+      
