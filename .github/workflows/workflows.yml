@@ -118,9 +118,13 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+      - name: "Update kubeconfig in EKS"
+        run: |
+          aws eks update-kubeconfig --region ${{ vars.AWS_REGION }} --name bankflow
+
       - name: "Execute Helm Command"
         run: |
-          helm upgrade --install --dry-run bankflow ./bankflow -f bankflow/dev-values.yml --set image.repository="${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/bankflow/bankflow-app" -f bankflow/${ENV_NAME}-values.yml
+          helm upgrade --install bankflow ./bankflow -f bankflow/dev-values.yml --set image.repository="${{secrets.AWS_ACCOUNT_ID}}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/bankflow/bankflow-app" -f bankflow/${ENV_NAME}-values.yml --namespace $ENV_NAME --create-namespace
         working-directory: "./helm"
 
     
